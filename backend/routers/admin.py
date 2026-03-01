@@ -1,6 +1,19 @@
+import json
+
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.models.schemas import UserListResponse, UserRecommendationsResponse, UserSummary
+from backend.config import CUSTOM_COLLECTIONS_PATH, DEFAULT_COLLECTIONS, YELP_EVENT_LABELS
+from backend.models.schemas import (
+    Collection,
+    CollectionsResponse,
+    CreateCollectionRequest,
+    GenerateCollectionRequest,
+    GenerateCollectionResponse,
+    UserListResponse,
+    UserRecommendationsResponse,
+    UserSummary,
+)
+from backend.services import llm_service
 from backend.state import app_state
 
 router = APIRouter()
@@ -38,3 +51,80 @@ def get_user_recommendations(user_id: str):
         user_id=user_id,
         recommended_events=events,
     )
+
+
+def _load_custom_collections() -> list[dict]:
+    if CUSTOM_COLLECTIONS_PATH.exists():
+        return json.loads(CUSTOM_COLLECTIONS_PATH.read_text())
+    return []
+
+
+@router.get("/collections", response_model=CollectionsResponse)
+def get_collections():
+    """Return all collections (defaults + custom)."""
+    collections = [
+        Collection(name=name, labels=labels, is_default=True)
+        for name, labels in DEFAULT_COLLECTIONS.items()
+    ]
+    for c in _load_custom_collections():
+        collections.append(Collection(name=c["name"], labels=c["labels"], is_default=False))
+    return CollectionsResponse(collections=collections)
+
+
+@router.post("/collections", response_model=Collection)
+def create_collection(req: CreateCollectionRequest):
+    """Create a new custom collection."""
+    if not req.name.strip():
+        raise HTTPException(status_code=400, detail="Collection name is required")
+    if not req.labels:
+        raise HTTPException(status_code=400, detail="Must select at least one label")
+
+    invalid = [l for l in req.labels if l not in YELP_EVENT_LABELS]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid labels: {invalid}")
+
+    custom = _load_custom_collections()
+
+    # Check for duplicate name
+    all_names = set(DEFAULT_COLLECTIONS.keys()) | {c["name"] for c in custom}
+    if req.name.strip() in all_names:
+        raise HTTPException(status_code=409, detail=f"Collection '{req.name.strip()}' already exists")
+
+    entry = {"name": req.name.strip(), "labels": req.labels}
+    custom.append(entry)
+    CUSTOM_COLLECTIONS_PATH.write_text(json.dumps(custom, indent=2))
+
+    return Collection(name=entry["name"], labels=entry["labels"], is_default=False)
+
+
+@router.post("/collections/generate", response_model=GenerateCollectionResponse)
+async def generate_collection(req: GenerateCollectionRequest):
+    """Use LLM to generate a collection name + labels from a freeform description, then save it."""
+    if not req.description.strip():
+        raise HTTPException(status_code=400, detail="Description is required")
+
+    result = await llm_service.generate_collection(req.description.strip(), YELP_EVENT_LABELS)
+    if result is None:
+        raise HTTPException(
+            status_code=503,
+            detail="LLM not configured or failed. Set AZURE_OPENAI_KEY in .env",
+        )
+
+    # Save the generated collection
+    custom = _load_custom_collections()
+    all_names = set(DEFAULT_COLLECTIONS.keys()) | {c["name"] for c in custom}
+
+    # If name already exists, append a number
+    name = result["name"]
+    base_name = name
+    counter = 2
+    while name in all_names:
+        name = f"{base_name} {counter}"
+        counter += 1
+
+    entry = {"name": name, "labels": result["labels"]}
+    custom.append(entry)
+    CUSTOM_COLLECTIONS_PATH.write_text(json.dumps(custom, indent=2))
+
+    collection = Collection(name=name, labels=result["labels"], is_default=False)
+    return GenerateCollectionResponse(collection=collection, description=req.description.strip())

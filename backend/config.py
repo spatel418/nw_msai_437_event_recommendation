@@ -14,6 +14,8 @@ VENUE_EMB_PATH = DATA_DIR / "venue_embeddings_v3.npy"
 EVENT_EMB_PATH = DATA_DIR / "event_embeddings_v3.npy"
 VENUE_EVENT_MAP_PATH = DATA_DIR / "venue_event_map_v3.json"
 USER_EVENT_RECS_PATH = DATA_DIR / "user_event_recommendations_v3.json"
+NEW_USERS_PATH = DATA_DIR / "new_user_recommendations.json"
+CUSTOM_COLLECTIONS_PATH = DATA_DIR / "custom_collections.json"
 
 # ----- Model names -----
 SENTENCE_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
@@ -83,4 +85,10 @@ LABEL_GROUPS = {
     "Community & Events": [
         "Venues & Event Spaces", "Event Planning & Services", "Hotels & Travel", "Education",
     ],
+}
+
+# ----- Default collections (Netflix-style groupings) -----
+DEFAULT_COLLECTIONS = {
+    "Friday Night Out": ["Bars", "Nightlife", "Music Venues", "Comedy Clubs"],
+    "Family Weekend": ["Kids Activities", "Amusement Parks", "Aquariums", "Museums"],
 }

@@ -5,7 +5,7 @@ import NewUserPage from "./pages/NewUserPage";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-white">
       <Navbar />
       <Routes>
         <Route path="/" element={<NewUserPage />} />

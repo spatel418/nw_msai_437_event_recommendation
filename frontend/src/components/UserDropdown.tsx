@@ -51,17 +51,17 @@ export default function UserDropdown({ onSelect }: Props) {
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
+        className="w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-nu-purple focus:ring-1 focus:ring-nu-purple"
       />
       {open && (
-        <div className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {loading ? (
             <div className="px-4 py-2 text-gray-500 text-sm">Loading...</div>
           ) : users.length === 0 ? (
             <div className="px-4 py-2 text-gray-500 text-sm">No users found</div>
           ) : (
             <>
-              <div className="px-4 py-1 text-gray-500 text-xs border-b border-gray-700">
+              <div className="px-4 py-1 text-gray-400 text-xs border-b border-gray-100">
                 {total} users found
               </div>
               {users.map((uid) => (
@@ -72,7 +72,7 @@ export default function UserDropdown({ onSelect }: Props) {
                     setSearch(uid);
                     setOpen(false);
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-nu-purple-faint hover:text-nu-purple"
                 >
                   {uid}
                 </button>

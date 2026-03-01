@@ -1,4 +1,5 @@
 import type {
+  Collection,
   EventRecommendation,
   LabelsResponse,
   PipelineStatus,
@@ -54,6 +55,32 @@ export function getUserRecommendations(
   return fetchJSON(`${BASE}/admin/users/${encodeURIComponent(userId)}/recommendations`);
 }
 
+// --- Collections ---
+export function getCollections(): Promise<{ collections: Collection[] }> {
+  return fetchJSON(`${BASE}/admin/collections`);
+}
+
+export function createCollection(
+  name: string,
+  labels: string[]
+): Promise<Collection> {
+  return fetchJSON(`${BASE}/admin/collections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, labels }),
+  });
+}
+
+export function generateCollection(
+  description: string
+): Promise<{ collection: Collection; description: string }> {
+  return fetchJSON(`${BASE}/admin/collections/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
+}
+
 // --- Pipeline ---
 export function triggerPipelineUpdate(): Promise<PipelineStatus> {
   return fetchJSON(`${BASE}/pipeline/update`, { method: "POST" });
@@ -61,6 +88,23 @@ export function triggerPipelineUpdate(): Promise<PipelineStatus> {
 
 export function getPipelineStatus(): Promise<PipelineStatus> {
   return fetchJSON(`${BASE}/pipeline/status`);
+}
+
+// --- Save New User ---
+export function saveNewUser(
+  name: string,
+  selectedLabels: string[],
+  recommendedEvents: EventRecommendation[]
+): Promise<{ saved: boolean; name: string; message: string }> {
+  return fetchJSON(`${BASE}/recommend/save-user`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      selected_labels: selectedLabels,
+      recommended_events: recommendedEvents,
+    }),
+  });
 }
 
 // --- LLM Reranker ---

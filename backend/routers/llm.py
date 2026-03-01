@@ -9,16 +9,21 @@ router = APIRouter()
 @router.post("/rerank", response_model=LLMRerankerResponse)
 async def rerank(req: LLMRerankerRequest):
     """
-    Scaffold: accepts events + natural language prompt for LLM reranking.
-    Currently returns events unchanged.
+    Rerank/filter events using Azure OpenAI based on a natural language prompt.
+    Falls back to returning events unchanged if Azure is not configured.
     """
-    events = await llm_service.rerank_events(
+    events, llm_applied = await llm_service.rerank_events(
         [e.model_dump() for e in req.events],
         req.prompt,
     )
 
+    if llm_applied:
+        message = f"Reranked by LLM. {len(events)} events returned."
+    else:
+        message = "LLM not configured. Set AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT in .env"
+
     return LLMRerankerResponse(
         events=events,
-        llm_applied=False,
-        message="LLM reranker not yet configured. Set up Azure OpenAI resource.",
+        llm_applied=llm_applied,
+        message=message,
     )

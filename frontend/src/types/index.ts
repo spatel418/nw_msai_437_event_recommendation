@@ -35,3 +35,9 @@ export interface UserRecommendationsResponse {
   user_id: string;
   recommended_events: EventRecommendation[];
 }
+
+export interface Collection {
+  name: string;
+  labels: string[];
+  is_default: boolean;
+}

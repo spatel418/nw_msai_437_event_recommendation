@@ -9,7 +9,7 @@ interface Props {
 export default function EventList({ events, showVenueInfo = false }: Props) {
   if (events.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-gray-400">
         No events found. Try selecting different labels.
       </div>
     );

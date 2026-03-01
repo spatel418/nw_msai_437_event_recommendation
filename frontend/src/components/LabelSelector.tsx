@@ -9,7 +9,7 @@ export default function LabelSelector({ groups, selected, onToggle }: Props) {
     <div className="space-y-6">
       {Object.entries(groups).map(([groupName, labels]) => (
         <div key={groupName}>
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <h3 className="text-sm font-semibold text-nu-purple uppercase tracking-wider mb-2">
             {groupName}
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -21,8 +21,8 @@ export default function LabelSelector({ groups, selected, onToggle }: Props) {
                   onClick={() => onToggle(label)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
                     isSelected
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
-                      : "bg-gray-800 text-gray-300 border-gray-600 hover:border-indigo-400 hover:text-white"
+                      ? "bg-nu-purple text-white border-nu-purple shadow-md"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-nu-purple-light hover:text-nu-purple"
                   }`}
                 >
                   {label}

@@ -43,9 +43,46 @@ class NewUserResponse(BaseModel):
     recommended_events: list[EventRecommendation]
 
 
+class SaveNewUserRequest(BaseModel):
+    name: str
+    selected_labels: list[str]
+    recommended_events: list[EventRecommendation]
+
+
+class SaveNewUserResponse(BaseModel):
+    saved: bool
+    name: str
+    message: str
+
+
 class LabelsResponse(BaseModel):
     labels: list[str]
     groups: dict[str, list[str]]
+
+
+# --- Collections ---
+class Collection(BaseModel):
+    name: str
+    labels: list[str]
+    is_default: bool = False
+
+
+class CollectionsResponse(BaseModel):
+    collections: list[Collection]
+
+
+class CreateCollectionRequest(BaseModel):
+    name: str
+    labels: list[str]
+
+
+class GenerateCollectionRequest(BaseModel):
+    description: str
+
+
+class GenerateCollectionResponse(BaseModel):
+    collection: Collection
+    description: str
 
 
 # --- Pipeline ---
