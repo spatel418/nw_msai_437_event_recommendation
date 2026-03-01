@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "nw-msai-437-event-recommendation"
+version = "0.1.0"
+description = ""
+authors = ["Simron Patel <patel.simd@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^3.0.1"
+numpy = "^2.4.2"
+sentence-transformers = "^5.2.3"
+jupyter = "^1.1.1"
+notebook = "^7.5.3"
+fastapi = "^0.115.0"
+uvicorn = "^0.32.0"
+transformers = "^4.46.0"
+torch = "^2.5.0"
+requests = "^2.32.0"
+beautifulsoup4 = "^4.12.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
