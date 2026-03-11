@@ -33,6 +33,9 @@ class AppState:
     pipeline: PipelineStatus = field(default_factory=PipelineStatus)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
+    # Ephemeral sections (in-memory only, cleared on restart)
+    sections: list = field(default_factory=list)  # list of {id, title, description}
+
 
 # Singleton instance
 app_state = AppState()

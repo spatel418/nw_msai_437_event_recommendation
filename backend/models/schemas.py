@@ -93,6 +93,35 @@ class PipelineStatusResponse(BaseModel):
     last_error: str | None
 
 
+# --- Sections (ephemeral, in-memory) ---
+class Section(BaseModel):
+    id: str
+    title: str
+    description: str
+
+
+class SectionsResponse(BaseModel):
+    sections: list[Section]
+
+
+class CreateSectionRequest(BaseModel):
+    description: str
+
+
+class CreateSectionResponse(BaseModel):
+    section: Section
+
+
+class MapSectionEventsRequest(BaseModel):
+    events: list[EventRecommendation]
+
+
+class MapSectionEventsResponse(BaseModel):
+    section_id: str
+    title: str
+    events: list[EventRecommendation]
+
+
 # --- LLM Reranker (scaffold) ---
 class LLMRerankerRequest(BaseModel):
     events: list[EventRecommendation]

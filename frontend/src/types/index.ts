@@ -41,3 +41,9 @@ export interface Collection {
   labels: string[];
   is_default: boolean;
 }
+
+export interface Section {
+  id: string;
+  title: string;
+  description: string;
+}

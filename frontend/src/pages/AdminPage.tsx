@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
+  createSection,
+  deleteSection,
   generateCollection,
   getCollections,
   getLabels,
+  getSections,
   getUserRecommendations,
+  mapSectionEvents,
   rerankEvents,
 } from "../api/client";
 import EventList from "../components/EventList";
 import LabelSelector from "../components/LabelSelector";
 import PipelineStatus from "../components/PipelineStatus";
 import UserDropdown from "../components/UserDropdown";
-import type { Collection, EventRecommendation } from "../types";
+import type { Collection, EventRecommendation, Section } from "../types";
 
 function parseLabels(labelsStr: string): string[] {
   try {
@@ -45,10 +49,20 @@ export default function AdminPage() {
   const [filtering, setFiltering] = useState(false);
   const [llmMessage, setLlmMessage] = useState("");
 
-  // Load labels and collections on mount
+  // Sections state (ephemeral)
+  const [sections, setSections] = useState<Section[]>([]);
+  const [sectionPrompt, setSectionPrompt] = useState("");
+  const [creatingSec, setCreatingSec] = useState(false);
+  const [sectionError, setSectionError] = useState("");
+  // Mapped events per section: section_id -> EventRecommendation[]
+  const [sectionEvents, setSectionEvents] = useState<Record<string, EventRecommendation[]>>({});
+  const [mappingSections, setMappingSections] = useState<Record<string, boolean>>({});
+
+  // Load labels, collections, and sections on mount
   useEffect(() => {
     getLabels().then((res) => setLabelGroups(res.groups));
     loadCollections();
+    loadSections();
   }, []);
 
   async function loadCollections() {
@@ -60,6 +74,44 @@ export default function AdminPage() {
     }
   }
 
+  async function loadSections() {
+    try {
+      const res = await getSections();
+      setSections(res.sections);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Map all sections for a given set of events (called when user changes or sections change)
+  const mapAllSections = useCallback(
+    async (userEvents: EventRecommendation[], secs: Section[]) => {
+      if (secs.length === 0 || userEvents.length === 0) {
+        setSectionEvents({});
+        return;
+      }
+      const newMapping: Record<string, boolean> = {};
+      secs.forEach((s) => (newMapping[s.id] = true));
+      setMappingSections(newMapping);
+
+      const results: Record<string, EventRecommendation[]> = {};
+      await Promise.all(
+        secs.map(async (sec) => {
+          try {
+            const res = await mapSectionEvents(sec.id, userEvents);
+            results[sec.id] = res.events;
+          } catch {
+            results[sec.id] = [];
+          } finally {
+            setMappingSections((prev) => ({ ...prev, [sec.id]: false }));
+          }
+        })
+      );
+      setSectionEvents(results);
+    },
+    []
+  );
+
   async function handleUserSelect(userId: string) {
     setSelectedUser(userId);
     setError("");
@@ -67,9 +119,14 @@ export default function AdminPage() {
     setFilterLabels([]);
     setActiveCollection(null);
     setLlmMessage("");
+    setSectionEvents({});
     try {
       const res = await getUserRecommendations(userId);
       setEvents(res.recommended_events);
+      // Map sections on-the-fly for this user
+      if (sections.length > 0) {
+        mapAllSections(res.recommended_events, sections);
+      }
     } catch (e) {
       setEvents([]);
       setError(e instanceof Error ? e.message : "Failed to load recommendations");
@@ -110,6 +167,46 @@ export default function AdminPage() {
       setCreateError(e instanceof Error ? e.message : "Failed to generate collection");
     }
     setGenerating(false);
+  }
+
+  async function handleCreateSection() {
+    if (!sectionPrompt.trim()) return;
+    setCreatingSec(true);
+    setSectionError("");
+    try {
+      const res = await createSection(sectionPrompt.trim());
+      const newSections = [...sections, res.section];
+      setSections(newSections);
+      setSectionPrompt("");
+      // If a user is loaded, map the new section on-the-fly
+      if (events.length > 0) {
+        setMappingSections((prev) => ({ ...prev, [res.section.id]: true }));
+        try {
+          const mapped = await mapSectionEvents(res.section.id, events);
+          setSectionEvents((prev) => ({ ...prev, [res.section.id]: mapped.events }));
+        } catch {
+          setSectionEvents((prev) => ({ ...prev, [res.section.id]: [] }));
+        }
+        setMappingSections((prev) => ({ ...prev, [res.section.id]: false }));
+      }
+    } catch (e) {
+      setSectionError(e instanceof Error ? e.message : "Failed to create section");
+    }
+    setCreatingSec(false);
+  }
+
+  async function handleDeleteSection(sectionId: string) {
+    try {
+      await deleteSection(sectionId);
+      setSections((prev) => prev.filter((s) => s.id !== sectionId));
+      setSectionEvents((prev) => {
+        const next = { ...prev };
+        delete next[sectionId];
+        return next;
+      });
+    } catch {
+      // ignore
+    }
   }
 
   async function handleLLMFilter() {
@@ -238,6 +335,76 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Sections (ephemeral, Netflix-style) */}
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                  Build a New Category
+                </h3>
+
+                {/* Section Creator */}
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    placeholder={"Describe a vibe (e.g. \"when I'm bored on a Friday night\")..."}
+                    value={sectionPrompt}
+                    onChange={(e) => setSectionPrompt(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateSection()}
+                    disabled={creatingSec}
+                    className="flex-1 bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-nu-purple focus:ring-1 focus:ring-nu-purple disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleCreateSection}
+                    disabled={creatingSec || !sectionPrompt.trim()}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      creatingSec || !sectionPrompt.trim()
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-nu-purple text-white hover:bg-nu-purple-dark"
+                    }`}
+                  >
+                    {creatingSec ? "Creating..." : "+ Section"}
+                  </button>
+                </div>
+                {sectionError && (
+                  <p className="mb-2 text-red-500 text-xs">{sectionError}</p>
+                )}
+
+                {/* Rendered Sections */}
+                {sections.map((sec) => (
+                  <div
+                    key={sec.id}
+                    className="mb-4 p-4 bg-nu-purple-faint border border-nu-purple-light rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h4 className="text-base font-bold text-nu-purple">
+                          {sec.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 italic">
+                          &ldquo;{sec.description}&rdquo;
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteSection(sec.id)}
+                        className="text-gray-400 hover:text-red-500 text-sm px-2"
+                        title="Remove section"
+                      >
+                        &times;
+                      </button>
+                    </div>
+
+                    {mappingSections[sec.id] ? (
+                      <p className="text-xs text-gray-400">Mapping events...</p>
+                    ) : sectionEvents[sec.id] && sectionEvents[sec.id].length > 0 ? (
+                      <EventList events={sectionEvents[sec.id]} showVenueInfo />
+                    ) : sectionEvents[sec.id] ? (
+                      <p className="text-xs text-gray-400">No events matched this vibe.</p>
+                    ) : (
+                      <p className="text-xs text-gray-400">Select a user to see mapped events.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               {/* Label Filter Chips */}
               <div className="mt-4">
                 <div className="flex items-center gap-3 mb-2">
@@ -259,35 +426,6 @@ export default function AdminPage() {
                   selected={filterLabels}
                   onToggle={handleFilterToggle}
                 />
-              </div>
-
-              {/* LLM Reranker */}
-              <div className="mt-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder='Refine with AI (e.g. "only outdoor events", "events after 8pm")...'
-                    value={llmPrompt}
-                    onChange={(e) => setLlmPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleLLMFilter()}
-                    disabled={filtering}
-                    className="flex-1 bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-nu-purple focus:ring-1 focus:ring-nu-purple disabled:opacity-50"
-                  />
-                  <button
-                    onClick={handleLLMFilter}
-                    disabled={filtering || !llmPrompt.trim()}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      filtering || !llmPrompt.trim()
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-nu-purple text-white hover:bg-nu-purple-dark"
-                    }`}
-                  >
-                    {filtering ? "Filtering..." : "Filter"}
-                  </button>
-                </div>
-                {llmMessage && (
-                  <p className="mt-1 text-xs text-gray-500">{llmMessage}</p>
-                )}
               </div>
 
               {/* Results */}

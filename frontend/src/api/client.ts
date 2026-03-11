@@ -3,6 +3,7 @@ import type {
   EventRecommendation,
   LabelsResponse,
   PipelineStatus,
+  Section,
   UserListResponse,
   UserRecommendationsResponse,
 } from "../types";
@@ -104,6 +105,38 @@ export function saveNewUser(
       selected_labels: selectedLabels,
       recommended_events: recommendedEvents,
     }),
+  });
+}
+
+// --- Sections (ephemeral) ---
+export function getSections(): Promise<{ sections: Section[] }> {
+  return fetchJSON(`${BASE}/admin/sections`);
+}
+
+export function createSection(
+  description: string
+): Promise<{ section: Section }> {
+  return fetchJSON(`${BASE}/admin/sections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
+}
+
+export function deleteSection(sectionId: string): Promise<{ deleted: boolean }> {
+  return fetchJSON(`${BASE}/admin/sections/${sectionId}`, {
+    method: "DELETE",
+  });
+}
+
+export function mapSectionEvents(
+  sectionId: string,
+  events: EventRecommendation[]
+): Promise<{ section_id: string; title: string; events: EventRecommendation[] }> {
+  return fetchJSON(`${BASE}/admin/sections/${sectionId}/map`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ events }),
   });
 }
 
